@@ -77,13 +77,14 @@ static const int ENABLE_TRAINING_PIN = 3;
 static const double A_Um = 16;
 static const double A_Zero = 9.5;
 static const double A_MenosUm = 5;
+static const double A_Menos2 = 3;
 
 //Servo Configurations
 static const int BASE_Z = 0;
 static const int BASE_Y = 1;
 static const int BRACO_Y = 2;
 
-static const int SERVO_DELAY = 80;
+static const int SERVO_DELAY = 10;
 static const int SERVO_ID_BIAS = 4;
 static const int SERVO_INIT_POS = 0;
 static const int SERVO_POS_BIAS = 90;
@@ -95,7 +96,7 @@ static const double Theta2_BIAS = 90;
 static const int FILTER_FOR_POTENTIOMETER = 6;
 
 static const int MINIMUM_DISTANCE_ALLOWED_TO_GROUND = 0;
-static const int MINIMUM_DISTANCE_ALLOWED_TO_ORIGIN = 9;
+static const int MINIMUM_DISTANCE_ALLOWED_TO_ORIGIN = 7;
 
 //Intantiate servo
 Servo servos[3];
@@ -117,7 +118,7 @@ void setup() { // Open serial communications and wait for port to open:
   initServos();
 
   kinematicsDemo();
-  Serial.println("Digite a para treinar, b para escrever ou c para enviar um comando");
+  Serial.println("Digite a para treinar ou c para enviar um comando");
 }
 
 void loop() {
@@ -133,7 +134,7 @@ void loop() {
       Serial.println(movs);
       executeMovs(movs);
     }
-    Serial.println("Digite a para treinar, b para escrever ou c para enviar um comando");
+    Serial.println("Digite a para treinar ou b para enviar um comando");
   }
 }
 
@@ -155,15 +156,19 @@ String getCommands(int enable_traning, char command) {
   } else{
     Serial.println("porta 3 está inativa");
   }
-  } else if(command == 'b'){
-    Serial.println("Você digitou b");
+  } else if(command == 'e'){
+    /*
+     * ainda em testes
+     */
+    Serial.println("Você digitou escrever");
+    Serial.println("Esta funcionalidade ainda está em desenvolvimento.");
     Serial.println("Digite uma palavra para ser escrita: ");
     waitForUser();
     return getCommandsToWriteWord(receiveData());
    
-    } else if(command = 'c'){
+    } else if(command = 'b'){
 
-      Serial.println("Você digitou c");
+      Serial.println("Você digitou b");
 
       Serial.println("Escreva os comandos ");
       waitForUser();
@@ -433,7 +438,8 @@ void inverseKinematic(double x, double y, double z, double *theta) {
     theta[i] = 0;
   }
 
-  double w    = sqrt(pow(x, 2) + pow(y, 2));
+  double w0    = sqrt(pow(x, 2) + pow(y, 2));
+  double w    = w0 + A_Menos2;
   double gama = sqrt(pow(w, 2) + pow((z - A_MenosUm), 2));
   double alfa = acos((pow(A_Um, 2) - pow(gama, 2) - pow(A_Zero, 2)) / (-2 * gama * A_Zero));
   
@@ -453,9 +459,11 @@ void forwardKinematic(double theta[3], double *mat, double *result)
   double mat1[4][4];
   rotateZ(mat, theta[0], &mat1[0][0]);
   double mat2[4][4];
-  translateZ(&mat1[0][0], 5, &mat2[0][0]);
+  translateZ(&mat1[0][0], A_MenosUm, &mat2[0][0]);
+  double matT[4][4];
+  translateX(&mat2[0][0], -A_Menos2, &matT[0][0]);
   double mat3[4][4];
-  rotateY(&mat2[0][0], theta[1], &mat3[0][0]);
+  rotateY(&matT[0][0], theta[1], &mat3[0][0]);
   double mat4[4][4];
   translateZ(&mat3[0][0], A_Zero, &mat4[0][0]);
   double mat5[4][4];
@@ -496,6 +504,18 @@ void translateZ(double *base, double translation, double *result) {
   double transMatrix[4][4] =  {{1, 0, 0, 0},
                                {0, 1, 0, 0},
                                {0, 0, 1, translation},
+                               {0, 0, 0, 1}
+  };
+
+  mMatriz(base, &transMatrix[0][0], result);
+
+}
+
+void translateX(double *base, double translation, double *result) {
+
+  double transMatrix[4][4] =  {{1, 0, 0, translation},
+                               {0, 1, 0, 0},
+                               {0, 0, 1, 0},
                                {0, 0, 0, 1}
   };
 
