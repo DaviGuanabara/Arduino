@@ -78,6 +78,7 @@ static const double A_Um = 16;
 static const double A_Zero = 9.5;
 static const double A_MenosUm = 5;
 static const double A_Menos2 = 3;
+static const double A_Elbow = 8;
 
 //Servo Configurations
 static const int BASE_Z = 0;
@@ -93,7 +94,7 @@ static const double Theta0_BIAS = 0;
 static const double Theta1_BIAS = 0;
 static const double Theta2_BIAS = 90;
 
-static const int FILTER_FOR_POTENTIOMETER = 6;
+static const int FILTER_FOR_POTENTIOMETER = 5;
 
 static const int MINIMUM_DISTANCE_ALLOWED_TO_GROUND = 0;
 static const int MINIMUM_DISTANCE_ALLOWED_TO_ORIGIN = 7;
@@ -264,6 +265,9 @@ String traningMode() {
     for (int i = potpin; i < potpin + 3; i++) {
 
       potpos = map(analogRead(i), 0, 1023, -90, 90);
+      if(i == potpin){
+        potpos = -1*potpos;
+      }
 
       if (!areThisEqual(potpos, last_mov[i - potpin])) {
         int servo_id = i - potpin;
@@ -386,17 +390,18 @@ void moveServo(int servo_id, int servo_pos) {
   if(!isAngleForbbiden(servo_id,servo_pos)){
 
     currentServoAngles[servo_id] = servo_pos;
-    printServoMoviment(servo_id, servo_pos, "Angulo: ");
+    //printServoMoviment(servo_id, servo_pos, "Angulo: ");
     if(servo_id == 2){
       servos[servo_id].write(-1*servo_pos + SERVO_POS_BIAS);
-    }else
-    servos[servo_id].write(servo_pos + SERVO_POS_BIAS);
-    Serial.print(".");
+    } else {
+      servos[servo_id].write(servo_pos + SERVO_POS_BIAS);
+    }
+    //Serial.print(".");
     delay(SERVO_DELAY);
   } else {
     Serial.println("");
     printServoMoviment(servo_id, servo_pos, "Angulo proibido");
-    Serial.println("");
+    //Serial.println("");
   }
 }
 
@@ -650,18 +655,49 @@ void printMatrix(double m[4][4]) {
 
 
 boolean isGround(double x, double y, double z){
-  if(z < MINIMUM_DISTANCE_ALLOWED_TO_GROUND) return true;
+  if(z < MINIMUM_DISTANCE_ALLOWED_TO_GROUND){ 
+    Serial.println("vai enconstar no chão");
+    return true;
+  }
   else return false;
 }
 
 boolean isBase(double x, double y, double z){
-  if(sqrt(pow(x,2) + pow(y,2) + pow(z,2)) < MINIMUM_DISTANCE_ALLOWED_TO_ORIGIN) return true;
+  if(sqrt(pow(x,2) + pow(y,2) + pow(z,2)) < MINIMUM_DISTANCE_ALLOWED_TO_ORIGIN){ 
+    Serial.println("vai enconstar na base");
+    return true;
+    }
   else return false;
 }
 
-boolean isPositionForbbiden(double x, double y, double z){
-  if(isBase(x,y,z) || isGround(x,y,z)) return true;
+boolean isPositionForbbiden(double mat[4][4], double mat1[4][4]){
+
+  double x  = mat[0][3];
+  double y  = mat[1][3];
+  double z  = mat[2][3];
+  double x1 = mat1[0][3];
+  double y1 = mat1[1][3];
+  double z1 = mat1[2][3];
+
+  //printPoint(x,y,z);
+
+  if(isBase(x,y,z) || isGround(x,y,z) || isGround(x1,y1,z1)) return true;
   else return false;
+
+
+  
+//  double mat1[4][4];
+//  //cotovelo
+//  
+//  x = mat1[0][3];
+//  y = mat1[1][3];
+//  z = mat1[2][3];
+//  
+//  printPoint(x,y,z);
+//  
+//  if(isBase(x,y,z) || isGround(x,y,z)) return true;
+  
+  return false;
   
 }
 
@@ -699,10 +735,12 @@ boolean isAnglesForbbiden(double theta[3]){
   rotateY(&mat4[0][0], theta[2], &mat5[0][0]);
   double mat6[4][4];
   translateZ(&mat5[0][0], A_Um, &mat6[0][0]);
+  double mat7[4][4];
+  translateZ(&mat5[0][0], - A_Elbow, &mat7[0][0]);
 
   printMatrix(mat6);
 
-  return isPositionForbbiden(mat6[0][3],mat6[1][3],mat6[2][3]);
+  return isPositionForbbiden(mat6, mat7);
 }
 
 boolean isAngleForbbiden(int servo, double angle){
@@ -799,12 +837,6 @@ String generateLine(double point0[2],double point1[2], String movs){ //, double 
  * y = cy + r * sin(a)
  * Where r is the RADIUS, cx,cy the origin, and a the angle.
  */
-
-void parametricEquationCircule(double RADIUS, double angle, double *point){
-  point[0] = RADIUS * cos(angle);
-  point[1] = RADIUS * sin(angle);
-  
-}
 
 
 /*
