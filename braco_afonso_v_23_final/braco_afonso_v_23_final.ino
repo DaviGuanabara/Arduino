@@ -893,7 +893,7 @@ String getMovsFromPositions(String positions, double angle_bias){
       int number = (int) inString.toInt();
       double x = locs[number][0];
       double y = locs[number][1];
-      double z = 1;
+      double z = 0;
       
       double theta[3];
 
